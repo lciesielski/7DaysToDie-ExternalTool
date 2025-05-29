@@ -1,0 +1,27 @@
+name: Dead Island 2 External Tool
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  publish-job:
+    runs-on: ubuntu-latest 
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET SDK
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Publish project (Release for Windows x64)
+      run: dotnet publish 7DaysToDie-ExternalTool/7DaysToDie-ExternalTool.csproj --configuration Release --runtime win-x64
+
+    - name: Upload build artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: 7DaysToDie-ExternalTool
+        path: 7DaysToDie-ExternalTool/7DaysToDie-ExternalTool/bin/Release/net8.0-windows/win-x64/publish/7DaysToDie-ExternalTool.exe
