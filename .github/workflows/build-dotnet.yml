@@ -24,4 +24,4 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: 7DaysToDie-ExternalTool
-        path: 7DaysToDie-ExternalTool/7DaysToDie-ExternalTool/bin/Release/net8.0-windows/win-x64/publish/7DaysToDie-ExternalTool.exe
+        path: 7DaysToDie-ExternalTool/bin/Release/net8.0-windows/win-x64/publish/7DaysToDie-ExternalTool.exe
