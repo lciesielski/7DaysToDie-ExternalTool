@@ -26,17 +26,57 @@
 	public const UIntPtr secondListObject = 0x18;
 	public const UIntPtr gameManager = 0x28;
 
-	public const UIntPtr mWorld = 0x58;
+	public class GameManager
+	{
+		public const UIntPtr mWorld = 0x58;
+		public const UIntPtr myEntityPlayerLocal = 0x60;
+	}
 
-	public const UIntPtr myEntityPlayerLocal = 0x60;
+	public class World 
+	{
+		public const UIntPtr entityAlives = 0x48;
+	}
 
-	public class EntityPlayerLocal
+	public class Inventory 
+	{
+		public const UIntPtr slots = 0x20;
+		public const UIntPtr mHoldingItemIndex = 0xD4;
+	}
+
+	public class  ItemInventoryData 
+	{
+		public const UIntPtr itemStack = 0x18;
+	}
+
+	public class  ItemStack 
+	{
+		public const UIntPtr itemValue = 0x10;
+	}
+
+	public class  ItemValue 
+	{
+		public const UIntPtr itemType = 0x28;
+		public const UIntPtr useTimes = 0x30;
+		public const UIntPtr quality = 0x38;
+	}
+
+	public const UIntPtr actionData = 0x38;
+
+	public class Entity
 	{
 		public const UIntPtr isFlyMode = 0x68;
 		public const UIntPtr isGodMode = 0x70;
+		public const UIntPtr belongsPlayerId = 0x270;
+	}
+
+	public class EntityAlive
+	{
+		public const UIntPtr entityName = 0x4C8;
+		public const UIntPtr ExperienceValue = 0x7B4;
+		public const UIntPtr inventory = 0x490;
 		public const UIntPtr entityStats = 0x5F0;
 		public const UIntPtr entityBuffs = 0x5F8;
-		public const UIntPtr playerId = 0x270;
+		public const UIntPtr killedPlayers = 0x7D8;
 	}
 
 	public class EntityStats
@@ -59,6 +99,7 @@
 
 	public const UIntPtr internalValue = 0x28;
 	public const UIntPtr activeBuffs = 0x18;
+
 	public class BuffValue
 	{
 		public const UIntPtr buffName = 0x18;

@@ -38,15 +38,87 @@ class Program
 		externalMemory.Read(gamePaused, out bool gamePausedBytes);
 		Console.WriteLine($"GamePaused: {gamePausedBytes}");
 
-		UIntPtr myEntityPlayerLocalAddress = gameManagerStruct + Offsets.myEntityPlayerLocal;
-		externalMemory.Read(myEntityPlayerLocalAddress, out UIntPtr myEntityPlayerLocal);
+		// Local Player
 
+		UIntPtr myEntityPlayerLocalAddress = gameManagerStruct + Offsets.GameManager.myEntityPlayerLocal;
+		externalMemory.Read(myEntityPlayerLocalAddress, out UIntPtr myEntityPlayerLocal);
 		Console.WriteLine($"myEntityPlayerLocal {myEntityPlayerLocal:X2}");
+
+		// Mod Item Durability
+
+		externalMemory.Read(myEntityPlayerLocal + Offsets.EntityAlive.inventory, out UIntPtr inventoryAddress);
+		externalMemory.Read(inventoryAddress + Offsets.Inventory.mHoldingItemIndex, out int holdingItemIndex);
+		externalMemory.Read(inventoryAddress + Offsets.Inventory.slots, out UIntPtr slotsArray);
+		UIntPtr holdingItemInventoryDataAddress = Offsets.ListGeneric.GetNextElementAddress(slotsArray, holdingItemIndex);
+		externalMemory.Read(holdingItemInventoryDataAddress, out UIntPtr holdingItemInventoryData);
+		externalMemory.Read(holdingItemInventoryData + Offsets.ItemInventoryData.itemStack, out UIntPtr itemStack);
+		externalMemory.Read(itemStack + Offsets.ItemStack.itemValue, out UIntPtr itemValue);
+		externalMemory.Read(itemValue + Offsets.ItemValue.itemType, out int itemType);
+		if (itemType != 0) 
+		{
+			externalMemory.Write(itemValue + Offsets.ItemValue.useTimes, (float) 0);
+			externalMemory.Read(itemValue + Offsets.ItemValue.quality, out ushort quality);
+			Console.WriteLine($"ItemType: {itemType}, Quality: {quality}");
+			externalMemory.Write(itemValue + Offsets.ItemValue.quality, (ushort) 300);
+		}
 
 		// Get player Id
 
-		externalMemory.Read(myEntityPlayerLocal + Offsets.EntityPlayerLocal.playerId, out int playerId);
+		externalMemory.Read(myEntityPlayerLocal + Offsets.Entity.belongsPlayerId, out int playerId);
 		Console.WriteLine($"PlayerId: {playerId}");
+
+		externalMemory.Read(myEntityPlayerLocal + Offsets.EntityAlive.killedPlayers, out int killedPlayers);
+		Console.WriteLine($"killedPlayers: {killedPlayers}");
+
+		// Entities list
+
+		UIntPtr mWorldAddress = gameManagerStruct + Offsets.GameManager.mWorld;
+		externalMemory.Read(mWorldAddress, out UIntPtr mWorld);
+		UIntPtr entityAlivesAddress = mWorld + Offsets.World.entityAlives;
+		externalMemory.Read(entityAlivesAddress, out UIntPtr entityAlivesListBase);
+
+		externalMemory.Read(entityAlivesListBase + Offsets.ListGeneric.items, out UIntPtr entitiesAliveListItems);
+		Console.WriteLine($"entitiesAliveListItems: {entitiesAliveListItems:X2}");
+
+		externalMemory.Read(entityAlivesListBase + Offsets.ListGeneric.size, out int entitiesAliveListSize);
+		Console.WriteLine($"entitiesAliveListSize: {entitiesAliveListSize:X2}");
+
+		Console.WriteLine("-------------------------------------------------------------------");
+		Console.WriteLine("Entity");
+
+		for (int i = 0; i < entitiesAliveListSize; i++)
+		{
+			UIntPtr listItemAddress = Offsets.ListGeneric.GetNextElementAddress(entitiesAliveListItems, i);
+			Console.WriteLine($"listItemAddress {i}: {listItemAddress:X2}");
+
+			externalMemory.Read(listItemAddress, out UIntPtr entityAlive);
+			Console.WriteLine($"entityAlive: {entityAlive:X2}");
+
+			externalMemory.Read(entityAlive + Offsets.EntityAlive.entityName, out UIntPtr entityNameAddress);
+			externalMemory.Read(entityNameAddress + Offsets.StringStruct.mLength, out int entityNameLength);
+			byte[] entityNameBuffer = new byte[entityNameLength * 2];
+			externalMemory.ReadRaw(entityNameAddress + Offsets.StringStruct.mValue, entityNameBuffer);
+			string entityNameValue = System.Text.Encoding.Unicode.GetString(entityNameBuffer);
+
+			//externalMemory.Read(entityAlive + Offsets.EntityAlive.ExperienceValue, out int entityXPValue);
+			//Console.WriteLine($"entityXPValue: {entityXPValue}");
+
+			externalMemory.Write(entityAlive + Offsets.EntityAlive.ExperienceValue, 1000);
+			externalMemory.Read(entityAlive + Offsets.EntityAlive.entityStats, out UIntPtr entityStats);
+			externalMemory.Read(entityStats + Offsets.EntityStats.Health, out UIntPtr entityHealth);
+			externalMemory.Read(entityHealth + Offsets.EntityStat.mValue, out float entityHealthValue);
+			if (entityHealthValue > 0)
+			{
+				Console.WriteLine($"Zombie is alive {entityNameValue}");
+				WriteStat(entityHealth, externalMemory, 1.0f);
+			}
+			else
+			{
+				Console.WriteLine($"Zombie is dead {entityNameValue}");
+			}
+		}
+
+		Console.WriteLine("-------------------------------------------------------------------");
 
 		// Set God Mode & Fly Mode
 
@@ -79,7 +151,7 @@ class Program
 
 		// Manage Buffs (eg. Cure Infection)
 
-		externalMemory.Read(myEntityPlayerLocal + Offsets.EntityPlayerLocal.entityBuffs, out UIntPtr buffsAddress);
+		externalMemory.Read(myEntityPlayerLocal + Offsets.EntityAlive.entityBuffs, out UIntPtr buffsAddress);
 		Console.WriteLine($"buffsAddress: {buffsAddress:X2}");
 
 		externalMemory.Read(buffsAddress + Offsets.activeBuffs, out UIntPtr buffValuesListBase);
@@ -121,8 +193,7 @@ class Program
 
 		// Overwrite stats
 
-		/*
-		externalMemory.Read(myEntityPlayerLocal + Offsets.EntityPlayerLocal.entityStats, out UIntPtr statsAddress);
+		externalMemory.Read(myEntityPlayerLocal + Offsets.EntityAlive.entityStats, out UIntPtr statsAddress);
 
 		externalMemory.Read(statsAddress + Offsets.EntityStats.Health, out UIntPtr healthAddress);
 		externalMemory.Read(statsAddress + Offsets.EntityStats.Stamina, out UIntPtr staminaAddress);
@@ -130,6 +201,13 @@ class Program
 		externalMemory.Read(statsAddress + Offsets.EntityStats.Temp, out UIntPtr tempAddress);
 		externalMemory.Read(statsAddress + Offsets.EntityStats.Food, out UIntPtr foodAddress);
 
+		WriteStat(healthAddress, externalMemory);
+		WriteStat(staminaAddress, externalMemory);
+		WriteStat(waterAddress, externalMemory);
+		WriteStat(tempAddress, externalMemory, 70);
+		WriteStat(foodAddress, externalMemory);
+
+		/*
 		for (;;)
 		{
 			Console.WriteLine("Writing stats...");
