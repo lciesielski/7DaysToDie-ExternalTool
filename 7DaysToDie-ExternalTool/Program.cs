@@ -6,66 +6,6 @@ class Program
 	const string targetProcessName = "7DaysToDie";
 	const string TargetModuleName = "UnityPlayer.dll";
 
-	class Offsets
-	{
-		public class GameObjectManager
-		{
-			public static UIntPtr lastTaggedObject = 0x0;
-			public static UIntPtr taggedObject = 0x8;
-			public static UIntPtr lastActiveObject = 0x20;
-			public static UIntPtr activeObject = 0x28;
-		};
-
-		public class ObjectManagerNode
-		{
-			public static UIntPtr prevLink = 0x0;
-			public static UIntPtr nextLink = 0x8;
-			public static UIntPtr gameObject = 0x10;
-		};
-
-		public class GameObject
-		{
-			public const UIntPtr Components = 0x30;
-			public const UIntPtr Name = 0x60;
-		};
-
-		public const UIntPtr GameObjectManagerFromUnityPlayer = 0x1CFD6C8;
-
-		public const UIntPtr secondListObject = 0x18;
-		public const UIntPtr gameManager = 0x28;
-
-		public const UIntPtr mWorld = 0x58;
-
-		public const UIntPtr myEntityPlayerLocal = 0x60;
-
-		public class EntityPlayerLocal
-		{
-			public const UIntPtr isFlyMode = 0x68;
-			public const UIntPtr isGodMode = 0x70;
-			public const UIntPtr entityStats = 0x5F0;
-		}
-
-		public class EntityStats 
-		{
-			public const UIntPtr Health = 0x10;
-			public const UIntPtr Stamina = 0x18;
-			public const UIntPtr Temp = 0x20;
-			public const UIntPtr Water = 0x28;
-			public const UIntPtr Food = 0x30;
-		}
-
-		public class EntityStat
-		{
-			public const UIntPtr mBaseMax = 0x20;
-			public const UIntPtr mOriginalBaseMax = 0x24;
-			public const UIntPtr mValue = 0x2C;
-			public const UIntPtr mOriginalValue = 0x30;
-			public const UIntPtr mLastValue = 0x50;
-		}
-
-		public const UIntPtr internalValue = 0x28;
-	}
-
 	static void Main(string[] args)
 	{
 #if WINDOWS
@@ -103,8 +43,14 @@ class Program
 
 		Console.WriteLine($"myEntityPlayerLocal {myEntityPlayerLocal:X2}");
 
+		// Get player Id
+
+		externalMemory.Read(myEntityPlayerLocal + Offsets.EntityPlayerLocal.playerId, out int playerId);
+		Console.WriteLine($"PlayerId: {playerId}");
+
 		// Set God Mode & Fly Mode
 
+		/*
 		UIntPtr isFlyModeAddress = myEntityPlayerLocal + Offsets.EntityPlayerLocal.isFlyMode;
 		UIntPtr isGodModeAddress = myEntityPlayerLocal + Offsets.EntityPlayerLocal.isGodMode;
 
@@ -117,20 +63,65 @@ class Program
 		externalMemory.Read(isFlyMode, out bool isFlyModeValue);
 		externalMemory.Read(isGodMode, out bool isGodModeValue);
 
+		
 		Console.WriteLine($"isFlyMode before: {isFlyModeValue}");
 		Console.WriteLine($"isGodMode before: {isFlyModeValue}");
 
-		//externalMemory.Write(isFlyMode, true);
-		//externalMemory.Write(isGodMode, true);
+		externalMemory.Write(isFlyMode, true);
+		externalMemory.Write(isGodMode, true);
 
 		externalMemory.Read(isFlyMode, out isFlyModeValue);
 		externalMemory.Read(isGodMode, out isGodModeValue);
 
 		Console.WriteLine($"isFlyMode after: {isFlyModeValue}");
 		Console.WriteLine($"isGodMode after: {isFlyModeValue}");
+		*/
+
+		// Manage Buffs (eg. Cure Infection)
+
+		externalMemory.Read(myEntityPlayerLocal + Offsets.EntityPlayerLocal.entityBuffs, out UIntPtr buffsAddress);
+		Console.WriteLine($"buffsAddress: {buffsAddress:X2}");
+
+		externalMemory.Read(buffsAddress + Offsets.activeBuffs, out UIntPtr buffValuesListBase);
+		Console.WriteLine($"buffValuesListBase: {buffValuesListBase:X2}");
+
+		externalMemory.Read(buffValuesListBase + Offsets.ListGeneric.items, out UIntPtr buffValuesListItems);
+		Console.WriteLine($"buffValuesListItems: {buffValuesListItems:X2}");
+
+		externalMemory.Read(buffValuesListBase + Offsets.ListGeneric.size, out int buffValuesListSize);
+		Console.WriteLine($"buffValuesListSize: {buffValuesListSize:X2}");
+
+		for (int i = 0; i < buffValuesListSize; i++)
+		{
+			UIntPtr listItemAddress = Offsets.ListGeneric.GetNextElementAddress(buffValuesListItems, i);
+			Console.WriteLine($"listItemAddress {i}: {listItemAddress:X2}");
+
+			externalMemory.Read(listItemAddress, out UIntPtr buffValue);
+			Console.WriteLine($"buffValue: {buffValue:X2}");
+
+			externalMemory.Read(buffValue + Offsets.BuffValue.buffName, out UIntPtr buffNameAddress);
+			externalMemory.Read(buffNameAddress + Offsets.StringStruct.mLength, out int buffNameLength);
+			byte[] buffNameBuffer = new byte[buffNameLength * 2];
+			externalMemory.ReadRaw(buffNameAddress + Offsets.StringStruct.mValue, buffNameBuffer);
+			string buffNameValue = System.Text.Encoding.Unicode.GetString(buffNameBuffer);
+			Console.WriteLine($"buffNameValue: {buffNameValue}");
+
+			externalMemory.Read(buffValue + Offsets.BuffValue.instigatorId, out int instigatorId);
+			Console.WriteLine($"instigatorId: {instigatorId}");
+
+			externalMemory.Read(buffValue + Offsets.BuffValue.buffFlags, out byte buffFlags);
+			Console.WriteLine($"buffFlags: {(Offsets.BuffFlags)buffFlags}");
+
+			if (instigatorId != playerId)
+			{ 
+				Console.WriteLine($"Removing buff {buffNameValue} with instigatorId {instigatorId} (not equal to playerId {playerId})");
+				externalMemory.Write(buffValue + Offsets.BuffValue.buffFlags, Offsets.BuffFlags.Finished);
+			}
+		}
 
 		// Overwrite stats
 
+		/*
 		externalMemory.Read(myEntityPlayerLocal + Offsets.EntityPlayerLocal.entityStats, out UIntPtr statsAddress);
 
 		externalMemory.Read(statsAddress + Offsets.EntityStats.Health, out UIntPtr healthAddress);
@@ -141,26 +132,28 @@ class Program
 
 		for (;;)
 		{
+			Console.WriteLine("Writing stats...");
 			WriteStat(healthAddress, externalMemory);
 			WriteStat(staminaAddress, externalMemory);
 			WriteStat(waterAddress, externalMemory);
-			WriteStat(tempAddress, externalMemory);
+			WriteStat(tempAddress, externalMemory, 70);
 			WriteStat(foodAddress, externalMemory);
 			Thread.Sleep(500);
 		}
+		*/
 #else
 		Console.WriteLine("This tool is only supported on Windows.");
 #endif
 	}
 
-	private static void WriteStat(UIntPtr statAddress, ExternalMemory externalMemory)
+	private static void WriteStat(UIntPtr statAddress, ExternalMemory externalMemory, float value = 100)
 	{
 
-		externalMemory.Write(statAddress + Offsets.EntityStat.mValue, (float)100);
-		externalMemory.Write(statAddress + Offsets.EntityStat.mLastValue, (float)100);
-		externalMemory.Write(statAddress + Offsets.EntityStat.mOriginalValue, (float)100);
-		externalMemory.Write(statAddress + Offsets.EntityStat.mOriginalBaseMax, (float)100);
-		externalMemory.Write(statAddress + Offsets.EntityStat.mBaseMax, (float)100);
+		externalMemory.Write(statAddress + Offsets.EntityStat.mValue, value);
+		externalMemory.Write(statAddress + Offsets.EntityStat.mLastValue, value);
+		externalMemory.Write(statAddress + Offsets.EntityStat.mOriginalValue, value);
+		externalMemory.Write(statAddress + Offsets.EntityStat.mOriginalBaseMax, value);
+		externalMemory.Write(statAddress + Offsets.EntityStat.mBaseMax, value);
 	}
 
 	private static UIntPtr GetGameManagerGameObject(UIntPtr activeObjectNode, ExternalMemory externalMemory)
@@ -195,11 +188,11 @@ class Program
 	{
 		externalMemory.Read(gameObjectManager, out UIntPtr activeObjectNode);
 		activeObjectNode += Offsets.GameObjectManager.activeObject;
-		Console.WriteLine($"ActiveObjectNode {activeObjectNode:X2}");
+		//Console.WriteLine($"ActiveObjectNode {activeObjectNode:X2}");
 
 		externalMemory.Read(activeObjectNode, out UIntPtr gameObject);
 		gameObject += Offsets.ObjectManagerNode.gameObject;
-		Console.WriteLine($"GameObject {gameObject:X2}");
+		//Console.WriteLine($"GameObject {gameObject:X2}");
 
 		ReadObjectName(gameObject, externalMemory);
 
@@ -210,11 +203,11 @@ class Program
 	{
 		externalMemory.Read(gameObjectManager, out UIntPtr lastActiveObjectNode);
 		lastActiveObjectNode += Offsets.GameObjectManager.lastActiveObject;
-		Console.WriteLine($"LastActiveObjectNode {lastActiveObjectNode:X2}");
+		//Console.WriteLine($"LastActiveObjectNode {lastActiveObjectNode:X2}");
 
 		externalMemory.Read(lastActiveObjectNode, out UIntPtr gameObject);
 		gameObject += Offsets.ObjectManagerNode.gameObject;
-		Console.WriteLine($"GameObject {gameObject:X2}");
+		//Console.WriteLine($"GameObject {gameObject:X2}");
 
 		ReadObjectName(gameObject, externalMemory);
 
