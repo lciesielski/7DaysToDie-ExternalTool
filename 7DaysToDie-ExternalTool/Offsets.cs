@@ -23,7 +23,7 @@
 
 	public const UIntPtr GameObjectManagerFromUnityPlayer = 0x1CFD6C8;
 
-	public const UIntPtr secondListObject = 0x18;
+	public const UIntPtr secondGameObjectPointer = 0x18;
 	public const UIntPtr gameManager = 0x28;
 
 	public class GameManager
@@ -35,6 +35,7 @@
 	public class World 
 	{
 		public const UIntPtr entityAlives = 0x48;
+		public const UIntPtr worldTime = 0x1B8;
 	}
 
 	public class Inventory 
@@ -77,6 +78,18 @@
 		public const UIntPtr entityStats = 0x5F0;
 		public const UIntPtr entityBuffs = 0x5F8;
 		public const UIntPtr killedPlayers = 0x7D8;
+		public const UIntPtr progression = 0x600;
+	}
+
+	public class Progression
+	{
+		//Static
+		public const UIntPtr ExpMultiplier = 0x08; //System.Single
+		public const UIntPtr MaxLevel = 0x0C;
+		public const UIntPtr SkillPointsPerLevel = 0x10;
+		public const UIntPtr SkillPointMultiplier = 0x14; //System.Single
+		//Dynamic
+		public const UIntPtr ExpToNextLevel = 0x44;
 	}
 
 	public class EntityStats
@@ -111,6 +124,14 @@
 	{
 		public const UIntPtr mLength = 0x10;
 		public const UIntPtr mValue = 0x14;
+	}
+
+	public class StaticData
+	{
+		public const UIntPtr VTable = 0x0;
+		public const UIntPtr MonoClass= 0x0;
+		public const UIntPtr VTableSize = 0x5C;
+		public const UIntPtr Fields = 0x48;
 	}
 
 	public class ListGeneric 
