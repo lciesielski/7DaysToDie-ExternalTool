@@ -13,13 +13,35 @@ class Program
 		ExternalMemory externalMemory = new ExternalMemory(targetProcess);
 
 		UIntPtr baseAddress = (UIntPtr)targetProcess.MainModule.BaseAddress;
-		Console.WriteLine($"baseAddress {baseAddress:X2}");
 
 		ProcessModule unityPlayerModule = targetProcess.Modules.Cast<ProcessModule>()
 			.FirstOrDefault(m => m.ModuleName.Equals(TargetModuleName, StringComparison.OrdinalIgnoreCase));
 
+		for (;;)
+		{
+			try
+			{
+				CheatLoop(unityPlayerModule, externalMemory);
+			}
+			catch (Exception ex)
+			{
+				Console.WriteLine($"An error occurred: {ex.Message}");
+				Console.WriteLine(ex.StackTrace);
+			}
+			finally
+			{
+				Thread.Sleep(1000);
+			}
+		}
+#else
+		Console.WriteLine("This tool is only supported on Windows.");
+#endif
+	}
+
+	private static void CheatLoop(ProcessModule unityPlayerModule, ExternalMemory externalMemory)
+	{
 		UIntPtr gameObjectManager = GetGameObjectManager(unityPlayerModule, externalMemory);
-		UIntPtr lastActiveObjectNode = GetLastActiveObjectNode(gameObjectManager, externalMemory);
+		//UIntPtr lastActiveObjectNode = GetLastActiveObjectNode(gameObjectManager, externalMemory);
 		UIntPtr activeObjectNode = GetActiveObjectNode(gameObjectManager, externalMemory);
 		UIntPtr gameManagerGameObject = GetGameManagerGameObject(activeObjectNode, externalMemory);
 		UIntPtr gameManagerAddress = GetGameManager(gameManagerGameObject, externalMemory);
@@ -28,7 +50,12 @@ class Program
 
 		UIntPtr myEntityPlayerLocalPointer = gameManagerAddress + Offsets.GameManager.myEntityPlayerLocal;
 		externalMemory.Read(myEntityPlayerLocalPointer, out UIntPtr myEntityPlayerLocalAddress);
-		Console.WriteLine($"myEntityPlayerLocalAddress {myEntityPlayerLocalAddress:X2}");
+		Console.WriteLine($"MyEntityPlayerLocalAddress: {myEntityPlayerLocalAddress:X2}");
+
+		if (myEntityPlayerLocalAddress == UIntPtr.Zero) 
+		{
+			return;
+		}
 
 		// Mod Item Quality & Durability
 
@@ -40,11 +67,16 @@ class Program
 		externalMemory.Read(holdingItemInventoryData + Offsets.ItemInventoryData.itemStack, out UIntPtr itemStack);
 		externalMemory.Read(itemStack + Offsets.ItemStack.itemValue, out UIntPtr itemValue);
 		externalMemory.Read(itemValue + Offsets.ItemValue.itemType, out int itemType);
-		if (itemType != 0) 
+
+		if (itemType != 0)
 		{
-			externalMemory.Write(itemValue + Offsets.ItemValue.useTimes, (float) 0);
 			externalMemory.Read(itemValue + Offsets.ItemValue.quality, out ushort quality);
-			externalMemory.Write(itemValue + Offsets.ItemValue.quality, (ushort) 6);
+
+			if (quality > 0) 
+			{
+				externalMemory.Write(itemValue + Offsets.ItemValue.useTimes, (float)0);
+				externalMemory.Write(itemValue + Offsets.ItemValue.quality, (ushort)6);
+			}
 		}
 
 		// Get player Id
@@ -57,7 +89,7 @@ class Program
 		UIntPtr progressionStaticFieldsAddress = GetStaticFieldsAddress(progressionAddress, externalMemory);
 
 		externalMemory.Write(progressionStaticFieldsAddress + Offsets.Progression.MaxLevel, 500);
-		externalMemory.Write(progressionStaticFieldsAddress + Offsets.Progression.SkillPointsPerLevel, 10);
+		externalMemory.Write(progressionStaticFieldsAddress + Offsets.Progression.SkillPointsPerLevel, 2);
 		externalMemory.Write(progressionAddress + Offsets.Progression.ExpToNextLevel, 1);
 
 		// Entities list
@@ -108,7 +140,6 @@ class Program
 		// 24000 = Day 2 0:00
 
 		externalMemory.Read(worldAddress + Offsets.World.worldTime, out int worldTime);
-		Console.WriteLine($"World Time before: {worldTime}");
 		externalMemory.Write(worldAddress + Offsets.World.worldTime, 240006000);
 
 		// Set God Mode & Fly Mode
@@ -150,7 +181,7 @@ class Program
 			externalMemory.Read(buffValue + Offsets.BuffValue.buffFlags, out byte buffFlags);
 
 			if (instigatorId != playerId)
-			{ 
+			{
 				Console.WriteLine($"Removing buff {buffNameValue} with instigatorId {instigatorId} (not equal to playerId {playerId})");
 				externalMemory.Write(buffValue + Offsets.BuffValue.buffFlags, Offsets.BuffFlags.Finished);
 			}
@@ -169,24 +200,8 @@ class Program
 		WriteStat(healthAddress, externalMemory);
 		WriteStat(staminaAddress, externalMemory);
 		WriteStat(waterAddress, externalMemory);
-		WriteStat(tempAddress, externalMemory, 70);
+		WriteStat(tempAddress, externalMemory);
 		WriteStat(foodAddress, externalMemory);
-
-		/*
-		for (;;)
-		{
-			Console.WriteLine("Writing stats...");
-			WriteStat(healthAddress, externalMemory);
-			WriteStat(staminaAddress, externalMemory);
-			WriteStat(waterAddress, externalMemory);
-			WriteStat(tempAddress, externalMemory, 70);
-			WriteStat(foodAddress, externalMemory);
-			Thread.Sleep(500);
-		}
-		*/
-#else
-		Console.WriteLine("This tool is only supported on Windows.");
-#endif
 	}
 
 	private static UIntPtr GetStaticFieldsAddress(UIntPtr progressionAddress, ExternalMemory externalMemory)
@@ -216,8 +231,12 @@ class Program
 		return gameManagerAddress;
 	}
 
-	private static void WriteStat(UIntPtr statAddress, ExternalMemory externalMemory, float value = 100)
+	private static void WriteStat(UIntPtr statAddress, ExternalMemory externalMemory, float value = int.MinValue)
 	{
+		if (value == int.MinValue) 
+		{
+			externalMemory.Read(statAddress + Offsets.EntityStat.mBaseMax, out value);
+		}
 
 		externalMemory.Write(statAddress + Offsets.EntityStat.mValue, value);
 		externalMemory.Write(statAddress + Offsets.EntityStat.mLastValue, value);

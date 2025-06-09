@@ -46,7 +46,13 @@
 
 	public class  ItemInventoryData 
 	{
+		public const UIntPtr itemClass = 0x10;
 		public const UIntPtr itemStack = 0x18;
+	}
+
+	public class  ItemClass 
+	{
+		public const UIntPtr actionsArray = 0x1B0;
 	}
 
 	public class  ItemStack 
@@ -81,13 +87,24 @@
 		public const UIntPtr progression = 0x600;
 	}
 
+	public class EntityPlayer
+	{
+		public const UIntPtr chunkObserver = 0x9F8;
+	}
+
+	public class ChunkObserver
+	{
+		public const UIntPtr mapDatabase = 0x38;
+	}
+
 	public class Progression
 	{
 		//Static
-		public const UIntPtr ExpMultiplier = 0x08; //System.Single
+		public const UIntPtr ExpMultiplier = 0x08;
 		public const UIntPtr MaxLevel = 0x0C;
 		public const UIntPtr SkillPointsPerLevel = 0x10;
-		public const UIntPtr SkillPointMultiplier = 0x14; //System.Single
+		public const UIntPtr SkillPointMultiplier = 0x14;
+
 		//Dynamic
 		public const UIntPtr ExpToNextLevel = 0x44;
 	}
